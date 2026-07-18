@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MongoBridge - Vercel Serverless MongoDB Console</title>
+  <meta name="description" content="A premium, serverless developer dashboard to securely test, query, and manage any MongoDB database dynamically from Vercel.">
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons for developer UI feel -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-glow"></div>
+  
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-logo">
+        <i class="fa-solid fa-database logo-icon"></i>
+        <h1>MongoBridge</h1>
+        <span class="badge badge-primary">Serverless Console</span>
+      </div>
+      <div class="header-status">
+        <span class="status-indicator" id="api-status-indicator"></span>
+        <span class="status-text" id="api-status-text">Checking server connection...</span>
+      </div>
+    </header>
+    
+    <main class="app-layout">
+      <!-- Left side: Form Inputs -->
+      <section class="panel panel-input">
+        <div class="panel-header">
+          <i class="fa-solid fa-sliders"></i>
+          <h2>Configuration</h2>
+        </div>
+        
+        <form id="mongo-form" class="panel-body">
+          <!-- Connection Section -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-link"></i> Connection Details</h3>
+            
+            <div class="form-group">
+              <label for="connectionString">MongoDB Connection String</label>
+              <div class="input-password-wrapper">
+                <input 
+                  type="password" 
+                  id="connectionString" 
+                  name="connectionString" 
+                  placeholder="mongodb+srv://user:password@cluster.mongodb.net/..." 
+                  required
+                >
+                <button type="button" class="btn-toggle-password" id="toggle-conn-str" title="Toggle Visibility">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+              <span class="field-hint">Supports MongoDB Atlas SRV or standard URIs. Saved locally in your browser.</span>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group col">
+                <label for="dbName">Database Name</label>
+                <input 
+                  type="text" 
+                  id="dbName" 
+                  name="db" 
+                  placeholder="e.g. shop_db" 
+                  required
+                >
+              </div>
+              
+              <div class="form-group col">
+                <label for="collectionName">Collection Name</label>
+                <input 
+                  type="text" 
+                  id="collectionName" 
+                  name="collection" 
+                  placeholder="e.g. products" 
+                  required
+                >
+              </div>
+            </div>
+          </div>
+          
+          <!-- Operation Section -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-code-branch"></i> Operation & Data</h3>
+            
+            <div class="form-group">
+              <label for="actionSelect">Action (Operation)</label>
+              <select id="actionSelect" name="action" required>
+                <option value="find" selected>find (Retrieve Documents)</option>
+                <option value="insertOne">insertOne (Save One Document)</option>
+                <option value="insertMany">insertMany (Save Multiple Documents)</option>
+                <option value="updateOne">updateOne (Update One Document)</option>
+                <option value="updateMany">updateMany (Update Multiple Documents)</option>
+                <option value="deleteOne">deleteOne (Delete One Document)</option>
+                <option value="deleteMany">deleteMany (Delete Multiple Documents)</option>
+                <option value="count">count (Count Documents)</option>
+              </select>
+            </div>
+            
+            <!-- Dynamic JSON fields based on operation -->
+            <div class="dynamic-inputs">
+              <!-- Query Editor (For find, update, delete, count) -->
+              <div class="form-group json-editor-group" id="group-query">
+                <div class="editor-header">
+                  <label for="queryInput">Query / Filter (JSON)</label>
+                  <button type="button" class="btn-format" data-target="queryInput">Format</button>
+                </div>
+                <textarea id="queryInput" class="json-textarea" placeholder="{}"></textarea>
+                <span class="field-hint">MongoDB query selector. Leave empty or {} to target all.</span>
+              </div>
+              
+              <!-- Document Editor (For insertOne) -->
+              <div class="form-group json-editor-group hidden" id="group-document">
+                <div class="editor-header">
+                  <label for="documentInput">Document (JSON Object)</label>
+                  <button type="button" class="btn-format" data-target="documentInput">Format</button>
+                </div>
+                <textarea id="documentInput" class="json-textarea" placeholder='{&#10;  "name": "Wireless Headphones",&#10;  "price": 99.99,&#10;  "inStock": true&#10;}'></textarea>
+                <span class="field-hint">The JSON document object you want to save.</span>
+              </div>
+              
+              <!-- Documents Editor (For insertMany) -->
+              <div class="form-group json-editor-group hidden" id="group-documents">
+                <div class="editor-header">
+                  <label for="documentsInput">Documents (JSON Array of Objects)</label>
+                  <button type="button" class="btn-format" data-target="documentsInput">Format</button>
+                </div>
+                <textarea id="documentsInput" class="json-textarea" placeholder='[&#10;  { "name": "Item A", "score": 85 },&#10;  { "name": "Item B", "score": 92 }&#10;]'></textarea>
+                <span class="field-hint">A valid JSON array of documents to insert.</span>
+              </div>
+
+              <!-- Update Operator Editor (For updateOne/updateMany) -->
+              <div class="form-group json-editor-group hidden" id="group-update">
+                <div class="editor-header">
+                  <label for="updateInput">Update Operations (JSON)</label>
+                  <button type="button" class="btn-format" data-target="updateInput">Format</button>
+                </div>
+                <textarea id="updateInput" class="json-textarea" placeholder='{&#10;  "$set": { "price": 89.99 },&#10;  "$inc": { "views": 1 }&#10;}'></textarea>
+                <span class="field-hint">MongoDB update modifications. Normal keys will automatically wrap in $set.</span>
+              </div>
+              
+              <!-- Options Editor (Optional, for find, update) -->
+              <div class="form-group json-editor-group" id="group-options">
+                <div class="editor-header">
+                  <label for="optionsInput">Query Options (JSON - Optional)</label>
+                  <button type="button" class="btn-format" data-target="optionsInput">Format</button>
+                </div>
+                <textarea id="optionsInput" class="json-textarea" placeholder='{&#10;  "limit": 10,&#10;  "sort": { "createdAt": -1 }&#10;}'></textarea>
+                <span class="field-hint">Pagination/sorting options (limit, skip, sort, projection).</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Actions Panel -->
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-test-connection">
+              <i class="fa-solid fa-plug"></i> Test Connection
+            </button>
+            <button type="submit" class="btn btn-primary" id="btn-run">
+              <i class="fa-solid fa-play"></i> Run Operation
+            </button>
+          </div>
+        </form>
+      </section>
+      
+      <!-- Right side: Results console -->
+      <section class="panel panel-result">
+        <div class="panel-header">
+          <i class="fa-solid fa-terminal"></i>
+          <h2>Console Output</h2>
+          <button type="button" class="btn-icon-action" id="btn-copy-result" title="Copy Response JSON">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+        
+        <div class="panel-body console-body">
+          <div class="console-metrics">
+            <div class="metric">
+              <span class="metric-label">Status</span>
+              <span class="metric-value badge badge-neutral" id="response-status">IDLE</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Latency</span>
+              <span class="metric-value" id="response-time">-- ms</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Documents</span>
+              <span class="metric-value" id="response-count">0</span>
+            </div>
+          </div>
+          
+          <div class="console-output-wrapper">
+            <div class="console-welcome" id="console-welcome-msg">
+              <div class="welcome-icon-box">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <h3>Ready to Connect</h3>
+              <p>Configure your MongoDB credentials on the left and run an operation to view database responses in real-time.</p>
+            </div>
+            
+            <pre id="json-renderer" class="json-view hidden"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer class="app-footer">
+      <p>MongoBridge Serverless Backend &copy; 2026. Deploy to your Vercel Hobby account for free.</p>
+      <a href="https://github.com" target="_blank" class="footer-link"><i class="fa-brands fa-github"></i> View Docs</a>
+    </footer>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>

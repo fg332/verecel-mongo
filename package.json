@@ -1,0 +1,13 @@
+{
+  "name": "vercel-mongodb-backend",
+  "version": "1.0.0",
+  "description": "Dynamic MongoDB Backend for Vercel Hobby",
+  "main": "api/mongo.js",
+  "scripts": {
+    "start": "node dev.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "mongodb": "^6.8.0"
+  }
+}
