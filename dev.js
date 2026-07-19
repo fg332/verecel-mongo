@@ -18,8 +18,8 @@ const MIME_TYPES = {
 const server = http.createServer(async (req, res) => {
   // Support CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,DELETE,PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 200;
@@ -27,45 +27,57 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Route API calls to /api/mongo
-  if (req.url === '/api/mongo' || req.url.startsWith('/api/mongo?')) {
-    if (req.method === 'POST') {
-      let body = '';
-      req.on('data', chunk => {
-        body += chunk.toString();
-      });
-      req.on('end', async () => {
-        try {
-          req.body = JSON.parse(body);
-        } catch (e) {
-          req.body = {};
-        }
-        
-        // Mock helper functions found in Vercel's response object
-        res.status = (code) => {
-          res.statusCode = code;
-          return res;
-        };
-        res.json = (data) => {
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify(data));
-          return res;
-        };
-        
-        try {
+  const isMongo = req.url === '/api/mongo' || req.url.startsWith('/api/mongo?');
+  const isNvidia = req.url === '/api/nvidia' || req.url.startsWith('/api/nvidia/') || req.url.startsWith('/api/nvidia?');
+
+  if (isMongo || isNvidia) {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', async () => {
+      // Mock helper functions found in Vercel's response object
+      res.status = (code) => {
+        res.statusCode = code;
+        return res;
+      };
+      res.json = (data) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(data));
+        return res;
+      };
+
+      try {
+        if (isMongo) {
+          if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed. Use POST.' });
+          }
+          try {
+            req.body = JSON.parse(body);
+          } catch (e) {
+            req.body = {};
+          }
           await mongoHandler(req, res);
-        } catch (err) {
-          console.error('Serverless Function Error:', err);
+        } else if (isNvidia) {
+          try {
+            req.body = JSON.parse(body);
+          } catch (e) {
+            req.body = body;
+          }
+          // Clear require cache during dev so changes to nvidia.js take effect immediately
+          delete require.cache[require.resolve('./api/nvidia')];
+          const nvidiaHandler = require('./api/nvidia');
+          await nvidiaHandler(req, res);
+        }
+      } catch (err) {
+        console.error('Serverless Function Error:', err);
+        if (!res.headersSent) {
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ success: false, error: err.message }));
         }
-      });
-    } else {
-      res.statusCode = 405;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ success: false, error: 'Method Not Allowed. Use POST.' }));
-    }
+      }
+    });
     return;
   }
 
