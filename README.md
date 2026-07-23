@@ -1,8 +1,10 @@
-# MongoBridge - Serverless MongoDB Vercel Backend & Console
+# MongoBridge & Nvidia Proxy - Serverless Vercel Backend & Console
 
-MongoBridge is a lightweight, secure serverless Node.js backend designed for Vercel Hobby accounts. It dynamically connects to any MongoDB instance (using a client-supplied connection string and database name), allowing you to save, query, update, and delete documents. 
+**Live Deployed Application**: [https://verecel-mongo.vercel.app/](https://verecel-mongo.vercel.app/)
 
-It comes with a built-in, dark-themed developer dashboard served at the root `/` to interactively construct queries, format payloads, and test operations.
+MongoBridge is a lightweight, secure serverless Node.js backend designed for Vercel Hobby accounts. It provides two main capabilities:
+1. **MongoDB Serverless Bridge**: Dynamically connects to any MongoDB instance (using a client-supplied connection string and database name), allowing you to save, query, update, and delete documents. It comes with a built-in, dark-themed developer dashboard served at the root `/`.
+2. **NVIDIA API Proxy**: Acts as a reverse proxy for the NVIDIA NIM API (`https://integrate.api.nvidia.com/v1`) to bypass CORS restrictions, enabling secure and cross-origin requests from client applications.
 
 ---
 
@@ -13,6 +15,7 @@ It comes with a built-in, dark-themed developer dashboard served at the root `/`
 - **Automatic ObjectId Conversion**: Recursively converts hex strings matching MongoDB ObjectIDs in your queries or documents (e.g. `_id` values or values inside `$in` arrays) into BSON `ObjectId`s.
 - **CORS Configured**: Global CORS headers are configured via `vercel.json` and endpoint headers, making the API consumable from external frontends.
 - **Fail-Fast Timeout**: Implements a 5-second socket selection timeout to avoid hanging serverless functions and exceeding Hobby execution limits.
+- **NVIDIA NIM CORS Proxy**: Resolves CORS issues for client-side web apps by reverse proxying request streams directly to NVIDIA. Supports stream responses (Server-Sent Events) and handles client disconnection abort signals.
 
 ---
 
@@ -23,7 +26,8 @@ It comes with a built-in, dark-themed developer dashboard served at the root `/`
 ├── vercel.json          - Vercel routing & CORS configuration
 ├── package.json         - Node.js dependencies (mongodb driver)
 ├── api
-│   └── mongo.js         - Vercel serverless function endpoint (/api/mongo)
+│   ├── mongo.js         - Vercel serverless function endpoint (/api/mongo)
+│   └── nvidia.js        - NVIDIA NIM proxy serverless function endpoint (/api/nvidia)
 └── public
     ├── index.html       - Premium Console Dashboard UI
     ├── style.css        - Glassmorphic dark styling
@@ -77,10 +81,12 @@ Follow the interactive prompts:
 
 ---
 
-## API Documentation
+## MongoDB API Documentation
 
 ### Endpoint
 `POST /api/mongo`
+
+*Note: Replace `https://verecel-mongo.vercel.app` with `http://localhost:3000` when running locally.*
 
 ### Request Headers
 `Content-Type: application/json`
@@ -105,7 +111,7 @@ Follow the interactive prompts:
 
 #### Retrieve (find) documents:
 ```bash
-curl -X POST http://localhost:3000/api/mongo \
+curl -X POST https://verecel-mongo.vercel.app/api/mongo \
   -H "Content-Type: application/json" \
   -d '{
     "connectionString": "mongodb+srv://...",
@@ -119,7 +125,7 @@ curl -X POST http://localhost:3000/api/mongo \
 
 #### Save (insertOne) document:
 ```bash
-curl -X POST http://localhost:3000/api/mongo \
+curl -X POST https://verecel-mongo.vercel.app/api/mongo \
   -H "Content-Type: application/json" \
   -d '{
     "connectionString": "mongodb+srv://...",
@@ -131,5 +137,31 @@ curl -X POST http://localhost:3000/api/mongo \
       "price": 129.99,
       "inStock": true
     }
+  }'
+```
+
+---
+
+## NVIDIA API Proxy Documentation
+
+### Endpoint
+`ANY /api/nvidia/*` (e.g., `POST /api/nvidia/chat/completions`)
+
+*Note: Replace `https://verecel-mongo.vercel.app` with `http://localhost:3000` when running locally.*
+
+### Example
+
+#### Chat Completion Request:
+```bash
+curl -X POST https://verecel-mongo.vercel.app/api/nvidia/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer nvapi-YOUR_NVIDIA_API_KEY" \
+  -d '{
+    "model": "meta/llama3-70b-instruct",
+    "messages": [{"role": "user", "content": "Write a haiku about antigravity"}],
+    "temperature": 0.5,
+    "top_p": 1,
+    "max_tokens": 1024,
+    "stream": false
   }'
 ```
